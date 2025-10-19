@@ -18,11 +18,11 @@ postprocess:
   # Morphological operations
   morph_kernel_size: 5
   morph_iterations: 2
-  
+
   # Mask refinement
   apply_gaussian_blur: true
   gaussian_kernel_size: 5
-  
+
   # Threshold for binary mask
   confidence_threshold: 0.5
 
@@ -31,5 +31,5 @@ output:
   save_alpha: true  # Always save with transparent background
 
 # Processing
-device: "cuda"  # "cuda" or "cpu"
+device: "cpu"  # "cuda" or "cpu"
 batch_size: 1

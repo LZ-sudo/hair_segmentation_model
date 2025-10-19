@@ -69,6 +69,11 @@ python pipeline.py --input path/to/image.jpg --output path/to/output.png
 python pipeline.py --input path/to/images/ --output path/to/outputs/
 ```
 
+**Process a directory with subdirectories of images:**
+```bash
+python pipeline.py --input path/to/directory/ --output path/to/output_directory/
+```
+
 **With visualization:**
 ```bash
 python pipeline.py --input image.jpg --output output.png --visualize

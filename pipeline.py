@@ -10,7 +10,7 @@ from src.model import HairSegmentationModel
 from src.processing import ImagePreprocessor, MaskPostprocessor, OutputGenerator
 from src.utils import (
     load_config, load_image, save_image, get_image_files,
-    create_output_path, visualize_results, ensure_dir
+    create_output_path, visualize_results, ensure_dir, get_relative_path
 )
 
 
@@ -106,39 +106,52 @@ class HairSegmentationPipeline:
             'output_path': output_path
         }
     
-    def process_batch(self, input_dir, output_dir, visualize=False):
+    def process_batch(self, input_dir, output_dir, visualize=False, recursive=True):
         """
         Process all images in a directory.
-        
+
         Args:
             input_dir: Input directory path
             output_dir: Output directory path
             visualize: Whether to show visualization for each image
-            
+            recursive: If True, process subdirectories and preserve structure
+
         Returns:
             List of processed results
         """
-        # Get all image files
-        image_files = get_image_files(input_dir)
-        
+        # Get all image files (recursive if specified)
+        image_files = get_image_files(input_dir, recursive=recursive)
+
         if not image_files:
             print(f"No images found in {input_dir}")
             return []
-        
+
         print(f"Found {len(image_files)} images to process")
-        
+
         # Create output directory
         ensure_dir(output_dir)
-        
+
         # Process each image
         results = []
         for image_path in tqdm(image_files, desc="Processing images"):
             try:
-                # Create output path
-                output_path = create_output_path(
-                    image_path, output_dir, suffix="", extension=".png"
-                )
-                
+                # Preserve subdirectory structure
+                if recursive:
+                    # Get relative path from input_dir
+                    rel_path = get_relative_path(image_path, input_dir)
+                    # Create output path preserving directory structure
+                    output_path = Path(output_dir) / rel_path
+                    # Change extension to .png
+                    output_path = output_path.with_suffix('.png')
+                    # Ensure parent directory exists
+                    ensure_dir(output_path.parent)
+                    output_path = str(output_path)
+                else:
+                    # Flat structure - use original behavior
+                    output_path = create_output_path(
+                        image_path, output_dir, suffix="", extension=".png"
+                    )
+
                 # Process image
                 result = self.process_single(
                     image_path, output_path, visualize=visualize
@@ -149,7 +162,7 @@ class HairSegmentationPipeline:
                     'success': True,
                     'result': result
                 })
-                
+
             except Exception as e:
                 print(f"\nError processing {image_path}: {e}")
                 results.append({
@@ -157,11 +170,11 @@ class HairSegmentationPipeline:
                     'success': False,
                     'error': str(e)
                 })
-        
+
         # Summary
         successful = sum(1 for r in results if r['success'])
         print(f"\nProcessing complete: {successful}/{len(results)} images processed successfully")
-        
+
         return results
     
     def process_from_list(self, image_paths, output_dir, visualize=False):
@@ -209,7 +222,7 @@ class HairSegmentationPipeline:
 def main():
     """Example usage of the pipeline."""
     import argparse
-    
+
     parser = argparse.ArgumentParser(description='Hair Segmentation Pipeline')
     parser.add_argument('--input', type=str, required=True,
                        help='Input image or directory')
@@ -219,19 +232,25 @@ def main():
                        help='Config file path')
     parser.add_argument('--visualize', action='store_true',
                        help='Visualize results')
-    
+    parser.add_argument('--recursive', action='store_true', default=True,
+                       help='Process subdirectories recursively (default: True)')
+    parser.add_argument('--no-recursive', dest='recursive', action='store_false',
+                       help='Process only files in the input directory (flat structure)')
+
     args = parser.parse_args()
-    
+
     # Initialize pipeline
     pipeline = HairSegmentationPipeline(config_path=args.config)
-    
+
     # Process single image or batch
     if os.path.isfile(args.input):
         # Single image
         pipeline.process_single(args.input, args.output, visualize=args.visualize)
     elif os.path.isdir(args.input):
         # Batch processing
-        pipeline.process_batch(args.input, args.output, visualize=args.visualize)
+        pipeline.process_batch(args.input, args.output,
+                             visualize=args.visualize,
+                             recursive=args.recursive)
     else:
         print(f"Error: {args.input} is not a valid file or directory")
 

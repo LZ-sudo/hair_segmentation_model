@@ -60,23 +60,41 @@ def save_image(image, output_path):
         raise IOError(f"Failed to save image: {output_path}")
 
 
-def get_image_files(directory, extensions=('.jpg', '.jpeg', '.png', '.bmp')):
+def get_image_files(directory, extensions=('.jpg', '.jpeg', '.png', '.bmp'), recursive=False):
     """
     Get all image files in a directory.
-    
+
     Args:
         directory: Path to directory
         extensions: Tuple of valid image extensions
-        
+        recursive: If True, search subdirectories recursively
+
     Returns:
         List of image file paths
     """
-    image_files = []
+    image_files = set()  # Use set to avoid duplicates
+    pattern_prefix = "**/" if recursive else ""
+
     for ext in extensions:
-        image_files.extend(Path(directory).glob(f"*{ext}"))
-        image_files.extend(Path(directory).glob(f"*{ext.upper()}"))
-    
+        # Add both lowercase and uppercase versions
+        image_files.update(Path(directory).glob(f"{pattern_prefix}*{ext}"))
+        image_files.update(Path(directory).glob(f"{pattern_prefix}*{ext.upper()}"))
+
     return sorted([str(f) for f in image_files])
+
+
+def get_relative_path(file_path, base_dir):
+    """
+    Get relative path of a file from a base directory.
+
+    Args:
+        file_path: Path to file
+        base_dir: Base directory path
+
+    Returns:
+        Relative path string
+    """
+    return str(Path(file_path).relative_to(Path(base_dir)))
 
 
 def create_output_path(input_path, output_dir, suffix="", extension=None):

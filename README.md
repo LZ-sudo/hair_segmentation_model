@@ -15,8 +15,8 @@ A modular pipeline for segmenting and isolating hair from images using BiSeNet.
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
-cd hair-segmentation
+git clone https://github.com/LZ-sudo/hair_segmentation_model.git
+cd hair_segmentation_model
 ```
 
 2. Install dependencies:
@@ -38,10 +38,11 @@ hair-segmentation/
 │   ├── model.py              # BiSeNet model and inference
 │   ├── processing.py         # Pre/post-processing utilities
 │   └── utils.py              # File I/O and visualization
+│   └── 79999_iter.pth        # BiSeNet pretrained weights 
 ├── pipeline.py               # Main pipeline orchestrator
-├── config.yaml              # Configuration file
-├── requirements.txt         # Python dependencies
-└── README.md               # This file
+├── config.yaml               # Configuration file
+├── requirements.txt          # Python dependencies
+└── README.md                 # This file
 ```
 
 ## Configuration
@@ -151,28 +152,6 @@ device: "cuda"  # Use GPU
 # device: "cpu"   # Use CPU
 ```
 
-## Advanced Usage
-
-### Integrate into Your Code
-
-```python
-from src.model import HairSegmentationModel
-from src.processing import ImagePreprocessor, MaskPostprocessor
-from src.utils import load_image
-
-# Load components separately
-model = HairSegmentationModel('pretrained/79999_iter.pth')
-preprocessor = ImagePreprocessor(input_size=(512, 512))
-postprocessor = MaskPostprocessor(config)
-
-# Custom processing
-image = load_image('input.jpg')
-tensor, orig_size = preprocessor.preprocess(image)
-output = model.predict(tensor)
-mask = model.extract_hair_mask(output)
-mask = postprocessor.refine_mask(mask)
-```
-
 ### Visualization
 
 ```python
@@ -217,15 +196,7 @@ visualize_comparison(
 
 See `requirements.txt` for complete list.
 
-## License
-
-[Add your license here]
-
 ## Acknowledgments
 
 - BiSeNet architecture based on [face-parsing.PyTorch](https://github.com/zllrunning/face-parsing.PyTorch)
 - Pretrained models trained on CelebAMask-HQ dataset
-
-## Contact
-
-[Add your contact information here]

@@ -1,0 +1,35 @@
+# Hair Segmentation Configuration
+
+# Model settings
+model:
+  name: "bisenet"
+  pretrained_path: "src/79999_iter.pth"  # Path to pretrained weights
+  num_classes: 19
+  hair_class_index: 17  # Hair class in CelebAMask-HQ dataset
+
+# Image processing
+image:
+  input_size: [512, 512]  # [height, width] for model input
+  mean: [0.485, 0.456, 0.406]  # ImageNet normalization
+  std: [0.229, 0.224, 0.225]
+
+# Post-processing
+postprocess:
+  # Morphological operations
+  morph_kernel_size: 5
+  morph_iterations: 2
+  
+  # Mask refinement
+  apply_gaussian_blur: true
+  gaussian_kernel_size: 5
+  
+  # Threshold for binary mask
+  confidence_threshold: 0.5
+
+# Output settings
+output:
+  save_alpha: true  # Always save with transparent background
+
+# Processing
+device: "cuda"  # "cuda" or "cpu"
+batch_size: 1

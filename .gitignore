@@ -2,3 +2,7 @@ input_pictures/
 myenv/
 src/__pycache__
 rename_images.py
+input_pictures_color/
+input_pictures_color_processed/
+irl_pictures_test/
+irl_pictures_test_processed/

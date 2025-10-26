@@ -1,19 +1,17 @@
-# Hair Segmentation Configuration
+# Hair Segmentation Configuration - SegFormer
 
 # Model settings
 model:
-  name: "bisenet"
-  pretrained_path: "src/79999_iter.pth"  # Path to pretrained weights
+  name: "segformer"
+  model_id: "jonathandinu/face-parsing"  # HuggingFace model ID
   num_classes: 19
-  hair_class_index: 17  # Hair class in CelebAMask-HQ dataset
+  hair_class_index: 17  # Will be auto-detected if hair class name differs
 
 # Image processing
 image:
-  input_size: [512, 512]  # [height, width] for model input
-  mean: [0.485, 0.456, 0.406]  # ImageNet normalization
-  std: [0.229, 0.224, 0.225]
+  input_size: [512, 512]  # [height, width] - SegFormer can handle any size
 
-# Post-processing
+# Post-processing (same as before)
 postprocess:
   # Morphological operations
   morph_kernel_size: 5

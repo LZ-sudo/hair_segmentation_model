@@ -5,6 +5,7 @@ Main hair segmentation pipeline.
 import os
 from pathlib import Path
 from tqdm import tqdm
+import numpy as np
 
 from src.model import HairSegmentationModel
 from src.processing import ImagePreprocessor, MaskPostprocessor, OutputGenerator
@@ -15,7 +16,7 @@ from src.utils import (
 
 
 class HairSegmentationPipeline:
-    """Complete pipeline for hair segmentation."""
+    """Complete pipeline for hair segmentation using SegFormer."""
     
     def __init__(self, config_path='config.yaml'):
         """
@@ -28,23 +29,21 @@ class HairSegmentationPipeline:
         self.config = load_config(config_path)
         
         # Initialize components
-        print("Initializing hair segmentation pipeline...")
+        print("Initializing SegFormer hair segmentation pipeline...")
         
         # Model
         model_config = self.config['model']
         self.model = HairSegmentationModel(
-            model_path=model_config['pretrained_path'],
+            model_id=model_config['model_id'],
             num_classes=model_config['num_classes'],
             device=self.config['device']
         )
-        self.hair_class_idx = model_config['hair_class_index']
+        self.hair_class_idx = model_config.get('hair_class_index', 17)
         
         # Preprocessor
         img_config = self.config['image']
         self.preprocessor = ImagePreprocessor(
-            input_size=tuple(img_config['input_size']),
-            mean=img_config['mean'],
-            std=img_config['std']
+            input_size=tuple(img_config['input_size'])
         )
         
         # Postprocessor
@@ -62,48 +61,46 @@ class HairSegmentationPipeline:
         Args:
             image_path: Path to input image
             output_path: Path to save output (optional)
-            visualize: Whether to show visualization
+            visualize: Whether to visualize results
             
         Returns:
-            Dictionary with processed results
+            Dict with processing results
         """
-        print(f"Processing: {image_path}")
-        
         # Load image
         image = load_image(image_path)
+        original_size = image.size
         
-        # Preprocess
-        input_tensor, original_size = self.preprocessor.preprocess(image)
+        # Preprocess (SegFormer handles most preprocessing internally)
+        processed_image = self.preprocessor(image)
         
-        # Run inference
-        output = self.model.predict(input_tensor)
+        # Run model inference - SegFormer expects PIL Image
+        output = self.model.predict(processed_image)
         
         # Extract hair mask
-        mask = self.model.extract_hair_mask(output, self.hair_class_idx)
+        hair_mask = self.model.extract_hair_mask(output, self.hair_class_idx)
         
-        # Resize mask to original size
-        mask = self.postprocessor.resize_mask(mask, original_size)
+        # Postprocess mask
+        hair_mask = self.postprocessor.process(hair_mask)
         
-        # Refine mask
-        mask = self.postprocessor.refine_mask(mask)
+        # Generate output with transparent background
+        hair_only = self.output_generator.create_transparent_hair(
+            np.array(image), hair_mask
+        )
         
-        # Generate hair-only output
-        hair_only = self.output_generator.create_hair_only(image, mask)
-        
-        # Save output if path provided
-        if output_path is not None:
-            self.output_generator.save_output(image, mask, output_path)
-            print(f"Saved output: {output_path}")
+        # Save if output path provided
+        if output_path:
+            save_image(hair_only, output_path)
+            print(f"Saved result to {output_path}")
         
         # Visualize if requested
         if visualize:
-            visualize_results(image, mask, hair_only)
+            visualize_results(image, hair_mask, hair_only)
         
         return {
             'original': image,
-            'mask': mask,
+            'mask': hair_mask,
             'hair_only': hair_only,
-            'output_path': output_path
+            'success': True
         }
     
     def process_batch(self, input_dir, output_dir, visualize=False, recursive=True):

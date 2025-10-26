@@ -1,159 +1,135 @@
 """
-Image preprocessing and postprocessing utilities.
+Pre/post-processing utilities for hair segmentation.
 """
 
 import cv2
 import numpy as np
-import torch
-from torchvision import transforms
+from PIL import Image
+import torchvision.transforms as transforms
 
 
 class ImagePreprocessor:
-    """Handles image preprocessing for model input."""
+    """Preprocess images for SegFormer model input."""
     
     def __init__(self, input_size=(512, 512), mean=None, std=None):
         """
         Initialize preprocessor.
         
+        Note: SegFormer has its own internal preprocessing via SegformerImageProcessor,
+        so this class mainly handles image resizing for consistency.
+        
         Args:
-            input_size: Tuple of (height, width) for model input
-            mean: RGB mean values for normalization
-            std: RGB std values for normalization
+            input_size: Target size (height, width) - optional for SegFormer
+            mean: Not used (kept for API compatibility)
+            std: Not used (kept for API compatibility)
         """
         self.input_size = input_size
-        self.mean = mean or [0.485, 0.456, 0.406]
-        self.std = std or [0.229, 0.224, 0.225]
-        
-        self.transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize(mean=self.mean, std=self.std)
-        ])
+        print("ImagePreprocessor initialized for SegFormer")
+        print("Note: SegFormer handles normalization internally")
     
-    def preprocess(self, image):
+    def __call__(self, image):
         """
-        Preprocess image for model input.
+        Preprocess image - minimal processing since SegFormer handles it.
         
         Args:
-            image: Input image (BGR format from cv2)
+            image: PIL Image
             
         Returns:
-            tensor: Preprocessed image tensor [1, 3, H, W]
-            original_size: Tuple of (height, width) of original image
+            PIL Image (optionally resized)
         """
-        original_size = image.shape[:2]
-        
-        # Convert BGR to RGB
-        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        
-        # Resize to model input size
-        resized = cv2.resize(image_rgb, (self.input_size[1], self.input_size[0]))
-        
-        # Apply transforms (normalize and convert to tensor)
-        tensor = self.transform(resized)
-        
-        # Add batch dimension
-        tensor = tensor.unsqueeze(0)
-        
-        return tensor, original_size
+        # SegFormer can handle any input size
+        return image
 
 
 class MaskPostprocessor:
-    """Handles mask refinement and postprocessing."""
+    """Post-process segmentation masks."""
     
     def __init__(self, config):
         """
-        Initialize postprocessor.
+        Initialize post-processor.
         
         Args:
-            config: Dictionary with postprocessing parameters
+            config: Post-processing configuration dict
         """
-        self.kernel_size = config.get('morph_kernel_size', 5)
-        self.iterations = config.get('morph_iterations', 2)
+        self.morph_kernel_size = config.get('morph_kernel_size', 5)
+        self.morph_iterations = config.get('morph_iterations', 2)
         self.apply_blur = config.get('apply_gaussian_blur', True)
-        self.blur_kernel = config.get('gaussian_kernel_size', 5)
+        self.blur_kernel_size = config.get('gaussian_kernel_size', 5)
         self.threshold = config.get('confidence_threshold', 0.5)
     
-    def refine_mask(self, mask):
+    def process(self, mask):
         """
-        Refine binary mask using morphological operations.
+        Apply post-processing operations to mask.
         
         Args:
-            mask: Binary mask [H, W] with values 0 or 1
+            mask: Binary mask [H, W] as numpy array
             
         Returns:
-            Refined binary mask
+            Processed mask [H, W] as numpy array
         """
-        # Convert to uint8 if needed
-        mask = (mask * 255).astype(np.uint8)
+        # Ensure mask is numpy array
+        if not isinstance(mask, np.ndarray):
+            mask = np.array(mask)
         
-        # Morphological opening (remove noise)
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, 
-                                          (self.kernel_size, self.kernel_size))
-        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, 
-                               iterations=self.iterations)
+        mask = mask.astype(np.uint8)
         
-        # Morphological closing (fill holes)
+        # Morphological operations to clean up mask
+        kernel = cv2.getStructuringElement(
+            cv2.MORPH_ELLIPSE, 
+            (self.morph_kernel_size, self.morph_kernel_size)
+        )
+        
+        # Close small holes
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, 
-                               iterations=self.iterations)
+                               iterations=self.morph_iterations)
         
-        # Optional Gaussian blur for smooth edges
+        # Remove small noise
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, 
+                               iterations=1)
+        
+        # Optional Gaussian blur for smoother edges
         if self.apply_blur:
-            mask = cv2.GaussianBlur(mask, (self.blur_kernel, self.blur_kernel), 0)
-            _, mask = cv2.threshold(mask, 127, 255, cv2.THRESH_BINARY)
+            mask_float = mask.astype(np.float32)
+            mask_float = cv2.GaussianBlur(
+                mask_float, 
+                (self.blur_kernel_size, self.blur_kernel_size), 
+                0
+            )
+            mask = (mask_float > self.threshold).astype(np.uint8)
         
         return mask
-    
-    def resize_mask(self, mask, target_size):
-        """
-        Resize mask to target size.
-        
-        Args:
-            mask: Input mask
-            target_size: Tuple of (height, width)
-            
-        Returns:
-            Resized mask
-        """
-        return cv2.resize(mask, (target_size[1], target_size[0]), 
-                         interpolation=cv2.INTER_LINEAR)
 
 
 class OutputGenerator:
-    """Generates hair-only output with transparent background."""
+    """Generate output images from segmentation results."""
     
-    def __init__(self):
-        """Initialize output generator."""
-        pass
-    
-    def create_hair_only(self, image, mask):
+    def create_transparent_hair(self, image, mask):
         """
         Create image with only hair visible on transparent background.
         
         Args:
-            image: Original image (BGR)
-            mask: Binary mask (0-255)
+            image: Original image as numpy array [H, W, 3] or PIL Image
+            mask: Binary hair mask [H, W] as numpy array
             
         Returns:
-            Hair-only image with alpha channel (BGRA)
+            PIL Image in RGBA format with transparent background
         """
-        # Create BGRA image
-        result = cv2.cvtColor(image, cv2.COLOR_BGR2BGRA)
-        result[:, :, 3] = mask  # Set alpha channel to mask
+        # Convert image to numpy if it's PIL
+        if isinstance(image, Image.Image):
+            image = np.array(image)
         
-        return result
-    
-    def save_output(self, image, mask, output_path):
-        """
-        Save hair-only output to file.
+        # Ensure mask is numpy array and binary
+        if not isinstance(mask, np.ndarray):
+            mask = np.array(mask)
+        mask = (mask > 0).astype(np.uint8)
         
-        Args:
-            image: Original image (BGR)
-            mask: Binary mask (0-255)
-            output_path: Path to save output PNG file
-            
-        Returns:
-            Path to saved file
-        """
-        output = self.create_hair_only(image, mask)
-        cv2.imwrite(output_path, output)
-        return output_path
+        # Create RGBA image
+        rgba = np.zeros((*image.shape[:2], 4), dtype=np.uint8)
+        
+        # Copy RGB channels
+        rgba[:, :, :3] = image
+        
+        # Set alpha channel from mask
+        rgba[:, :, 3] = mask * 255
+        
+        return Image.fromarray(rgba, 'RGBA')

@@ -4,26 +4,6 @@ A modular pipeline for segmenting hair and estimating hair length from images us
 a state-of-the-art transformer-based semantic segmentation model, combined with computer vision 
 techniques for precise length measurement.
 
-## Features
-
-### Hair Segmentation
-- **High-precision hair segmentation** using SegFormer transformer architecture
-- **Superior boundary detection** - Better edge precision compared to CNN-based models
-- **Transparent background output** - Hair isolated on transparent PNG
-- **Batch processing** for multiple images
-- **Configurable** via YAML configuration
-- **Post-processing refinement** with morphological operations
-- **Easy-to-use API** for integration into other projects
-- **Automatic EXIF orientation handling** - Images are automatically rotated to correct orientation
-
-### Hair Length Estimation 
-- **Automatic A4 paper detection** - Uses reference object (A4 paper) for calibration
-- **Color-based detection** - Robust detection of colored paper on colored backgrounds
-- **Precise measurements** - Calculates pixels-per-cm ratio for accurate length estimation
-- **JSON output** - Structured data output for easy integration
-- **Multiple detection methods** - Color-based, edge-based, or automatic fallback
-- **Configurable validation** - Ensures measurements are within reasonable ranges
-
 ## Installation
 
 ### Prerequisites
@@ -183,7 +163,7 @@ python hair_segmentation_pipeline.py --input image.jpg --output output.png --vis
 ### Setup Requirements
 
 For accurate hair length measurement, you need:
-1. **A4 paper** (21 cm × 29.7 cm) - Any color works, yellow recommended
+1. **A4 paper** (21 cm × 29.7 cm) - Any color works, preferably with high contrast to the backdrop
 2. **Fixed camera position** - Camera should be 1m from wall
 3. **Subject positioning** - Subject stands against wall with A4 paper next to them
 4. **Good lighting** - Ensure paper is well-lit and clearly visible
@@ -328,11 +308,3 @@ The pre-trained face parsing model used in this project:
 - **jonathandinu**: For fine-tuning and sharing the face-parsing model on HuggingFace
 - **CelebAMask-HQ**: For providing the high-quality face parsing dataset
 - **PyTorch & HuggingFace Teams**: For the deep learning frameworks and model hub
-
-## License
-
-This project is intended for research and educational purposes. Please ensure you comply with:
-- The licenses of the underlying models (SegFormer, pre-trained weights)
-- The CelebAMask-HQ dataset license (non-commercial research use)
-- Any applicable usage restrictions from HuggingFace
-

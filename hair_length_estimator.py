@@ -351,14 +351,14 @@ Output: Results are saved as JSON file in the output directory
     
     # Arguments with flags
     parser.add_argument(
-        '--input_dir',
+        '--input',
         type=str,
         required=True,
         help='Path to input image file or directory'
     )
     
     parser.add_argument(
-        '--output_dir',
+        '--output',
         type=str,
         required=True,
         help='Directory to save results (JSON files only)'

@@ -1,9 +1,12 @@
-# Hair Segmentation Pipeline
+# Hair Segmentation & Length Estimation Pipeline
 
-A modular pipeline for segmenting and isolating hair from images using **SegFormer**, a state-of-the-art transformer-based semantic segmentation model.
+A modular pipeline for segmenting hair and estimating hair length from images using **SegFormer**, 
+a state-of-the-art transformer-based semantic segmentation model, combined with computer vision 
+techniques for precise length measurement.
 
 ## Features
 
+### Hair Segmentation
 - **High-precision hair segmentation** using SegFormer transformer architecture
 - **Superior boundary detection** - Better edge precision compared to CNN-based models
 - **Transparent background output** - Hair isolated on transparent PNG
@@ -12,6 +15,14 @@ A modular pipeline for segmenting and isolating hair from images using **SegForm
 - **Post-processing refinement** with morphological operations
 - **Easy-to-use API** for integration into other projects
 - **Automatic EXIF orientation handling** - Images are automatically rotated to correct orientation
+
+### Hair Length Estimation 
+- **Automatic A4 paper detection** - Uses reference object (A4 paper) for calibration
+- **Color-based detection** - Robust detection of colored paper on colored backgrounds
+- **Precise measurements** - Calculates pixels-per-cm ratio for accurate length estimation
+- **JSON output** - Structured data output for easy integration
+- **Multiple detection methods** - Color-based, edge-based, or automatic fallback
+- **Configurable validation** - Ensures measurements are within reasonable ranges
 
 ## Installation
 
@@ -71,46 +82,64 @@ SegFormer offers several advantages over traditional CNN-based models like BiSeN
 hair_segmentation_model/
 ├── src/
 │   ├── __init__.py
-│   ├── model.py              # SegFormer model wrapper
-│   ├── processing.py         # Pre/post-processing utilities
-│   └── utils.py              # File I/O and helper functions
-├── pipeline.py               # Main pipeline orchestrator
-├── config.yaml               # Configuration file
-├── requirements.txt          # Python dependencies
-└── README.md                 # This file
+│   ├── model.py                     # SegFormer model wrapper
+│   ├── processing.py                # Pre/post-processing utilities
+│   ├── utils.py                     # File I/O and helper functions
+│   └── hair_length_cv.py            # Hair length CV operations 
+├── hair_segmentation_pipeline.py    # Main pipeline orchestrator
+├── hair_length_estimator.py         # Hair length estimation orchestrator
+├── config.yaml                      # Configuration file
+├── requirements.txt                 # Python dependencies
+└── README.md                        # This file
 ```
 
 ## Configuration
 
 Edit `config.yaml` to customize:
 
+### Hair Segmentation Settings
 ```yaml
 # Model settings
 model:
   name: "segformer"
-  model_id: "jonathandinu/face-parsing"  # HuggingFace model ID
+  model_id: "jonathandinu/face-parsing"
   num_classes: 19
-  hair_class_index: 17  # Auto-detected if not specified
+  hair_class_index: 17
 
 # Image processing
 image:
-  input_size: [512, 512]  # Target size (SegFormer can handle any size)
+  input_size: [512, 512]
 
 # Post-processing
 postprocess:
-  morph_kernel_size: 5        # Morphological operation kernel size
-  morph_iterations: 2         # Number of iterations for cleaning
-  apply_gaussian_blur: true   # Smooth edges
-  gaussian_kernel_size: 5     # Blur kernel size
-  confidence_threshold: 0.5   # Threshold for binary mask
+  morph_kernel_size: 5
+  morph_iterations: 2
+  apply_gaussian_blur: true
+  gaussian_kernel_size: 5
+  confidence_threshold: 0.5
+```
 
-# Output settings
-output:
-  save_alpha: true  # Save with transparent background
+### Hair Length Estimation Settings (NEW)
+```yaml
+hair_length:
+  # Detection method
+  detection_method: 'color'        # 'color', 'edges', or 'auto'
+  paper_color: 'yellow'            # Color of A4 paper reference
+  
+  # Detection parameters
+  min_area_pixels: 10000           # Minimum paper area
+  aspect_ratio_tolerance: 0.15     # A4 aspect ratio tolerance
+  min_confidence: 0.7              # Minimum detection confidence
+  
+  # Measurement validation
+  min_length_cm: 1.0               # Minimum hair length
+  max_length_cm: 200.0             # Maximum hair length
 
-# Processing
-device: "cuda"  # "cuda" or "cpu"
-batch_size: 1
+# Processing options
+processing:
+  file_pattern: "*.jpg"            # File pattern for batch processing
+  visualize: false                 # Create visualization images
+  save_mask: false                 # Save hair segmentation masks
 ```
 
 ### Adjusting Post-Processing
@@ -126,30 +155,56 @@ batch_size: 1
 
 **Process a single image:**
 ```bash
-python pipeline.py --input path/to/image.jpg --output path/to/output.png
+python hair_segmentation_pipeline.py --input path/to/image.jpg --output path/to/output.png
 ```
 
 **Process a directory of images:**
 ```bash
-python pipeline.py --input path/to/images/ --output path/to/outputs/
+python hair_segmentation_pipeline.py --input path/to/images/ --output path/to/outputs/
 ```
 
 **Process with subdirectories (recursive):**
 ```bash
-python pipeline.py --input path/to/directory/ --output path/to/output_directory/ --recursive
+python hair_segmentation_pipeline.py --input path/to/directory/ --output path/to/output_directory/ --recursive
 ```
 
 **Process only top-level directory (non-recursive):**
 ```bash
-python pipeline.py --input path/to/directory/ --output path/to/output_directory/ --no-recursive
+python hair_segmentation_pipeline.py --input path/to/directory/ --output path/to/output_directory/ --no-recursive
 ```
 
 **With visualization:**
 ```bash
-python pipeline.py --input image.jpg --output output.png --visualize
+python hair_segmentation_pipeline.py --input image.jpg --output output.png --visualize
 ```
 
-### Python API
+## Usage - Hair Length Estimation
+
+### Setup Requirements
+
+For accurate hair length measurement, you need:
+1. **A4 paper** (21 cm × 29.7 cm) - Any color works, yellow recommended
+2. **Fixed camera position** - Camera should be 1m from wall
+3. **Subject positioning** - Subject stands against wall with A4 paper next to them
+4. **Good lighting** - Ensure paper is well-lit and clearly visible
+
+### Single Image Processing
+```bash
+python hair_length_estimator.py --input subject.jpg --output results/
+```
+
+**Output:**
+- `results/subject_result.json` - JSON file with measurement data
+
+### Batch Processing
+```bash
+python hair_length_estimator.py --input photos/ --output results/
+```
+
+**Output:**
+- `results/results.json` - JSON file with all measurements
+
+### Hair Segmentation in Your Code (API)
 
 **Single image processing:**
 ```python
@@ -199,78 +254,41 @@ results = pipeline.process_from_list(
 )
 ```
 
-## Output Format
+### Hair Length Estimation in Your Code (API)
 
-The pipeline generates PNG files with alpha channel (transparency):
+```python
+from hair_length_estimator import HairLengthEstimator
 
-- **Hair-only with transparent background**: Only the hair is visible, everything else is transparent
-- **Maintains original resolution**: Output has the same dimensions as input
-- **Correct orientation**: Automatically handles EXIF rotation data
+# Initialize estimator
+estimator = HairLengthEstimator(config_path='config.yaml')
 
-Output files maintain the same filename as input with `.png` extension for transparency support.
+# Estimate hair length from single image
+result = estimator.estimate_length('photo.jpg')
 
-## Examples
+if result['success']:
+    print(f"Hair length: {result['hair_length_cm']} cm")
+    print(f"Confidence: {result['calibration_confidence']}")
+else:
+    print(f"Error: {result['error']}")
+```
 
-### Input → Output Comparison
+### Batch Processing in Code
+```python
+# Process directory
+results = estimator.batch_process(
+    input_dir='photos/',
+    output_dir='results/',
+    pattern='*.jpg'
+)
 
-The pipeline can handle various hair types and styles:
-- ✅ Straight, wavy, and curly hair
-- ✅ Different hair colors (black, brown, blonde, red, etc.)
-- ✅ Various hairstyles (long, short, updos, etc.)
-- ✅ Images from different angles
-- ✅ Various lighting conditions
+# Analyze results
+successful = [r for r in results if r['success']]
+print(f"Processed {len(successful)} images successfully")
 
-### Common Use Cases
-
-1. **Hair color analysis**: Isolate hair for color classification or extraction
-2. **Hair style classification**: Segment hair for texture/style analysis
-3. **Virtual try-on**: Replace hair color or style in photos
-4. **Dataset preparation**: Create masked hair images for training ML models
-5. **Photo editing**: Professional hair isolation for compositing
-
-## Troubleshooting
-
-**Images appear rotated:**
-- ✓ Fixed! The pipeline automatically handles EXIF orientation data
-
-**Out of memory errors:**
-- Switch to CPU: Set `device: "cpu"` in config.yaml
-- Reduce image size before processing
-- Process images one at a time
-
-**Poor segmentation quality:**
-- Adjust `confidence_threshold` in config (try 0.3 - 0.7 range)
-- Tune post-processing parameters:
-  - Increase `morph_iterations` for cleaner masks
-  - Adjust `gaussian_kernel_size` for edge smoothing
-
-**Slow processing:**
-- Enable GPU: Set `device: "cuda"` (requires CUDA installation)
-- Process in batches
-- Use smaller input images
-
-**Hair not fully detected:**
-- Lower `confidence_threshold` (e.g., 0.3)
-- Reduce `morph_iterations` to preserve fine details
-- Disable `apply_gaussian_blur` for sharper edges
-
-## Technical Details
-
-### Model Architecture
-
-**SegFormer** consists of:
-1. **Hierarchical Transformer Encoder**: Captures multi-scale features
-2. **Lightweight MLP Decoder**: Efficient segmentation head
-3. **No Positional Encoding**: Resolution-independent design
-
-### Processing Pipeline
-
-1. **Load Image**: Read and convert to RGB with EXIF orientation correction
-2. **Preprocessing**: Minimal preprocessing (SegFormer handles internally)
-3. **Inference**: Run SegFormer model to get segmentation logits
-4. **Extract Hair Mask**: Select hair class from multi-class output
-5. **Post-processing**: Morphological operations and edge smoothing
-6. **Generate Output**: Create RGBA image with transparent background
+# Get statistics
+lengths = [r['hair_length_cm'] for r in successful]
+print(f"Average length: {sum(lengths)/len(lengths):.2f} cm")
+```
 
 ## Citations
 

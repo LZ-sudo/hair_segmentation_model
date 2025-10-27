@@ -1,4 +1,4 @@
-# Hair Segmentation Configuration - SegFormer
+# ==================== Hair Segmentation Configuration - SegFormer ====================
 
 # Model settings
 model:
@@ -31,3 +31,32 @@ output:
 # Processing
 device: "cpu"  # "cuda" or "cpu"
 batch_size: 1
+
+# ==================== HAIR LENGTH ESTIMATION ====================
+hair_length:
+  # Detection method
+  detection_method: 'color'       # 'color' (recommended), 'edges', or 'auto' (tries both)
+
+  # Color detection parameters
+  paper_color: 'yellow'           # Color of A4 paper: 'yellow', 'white', 'blue', 'green', 'red', 'orange', 'pink'
+  
+  # Edge detection parameters (for 'edges' method)
+  edge_threshold1: 50             # Canny edge detection lower threshold
+  edge_threshold2: 150            # Canny edge detection upper threshold
+  
+  # Common detection parameters
+  min_area_pixels: 10000          # Minimum contour area to consider (in pixels)
+  aspect_ratio_tolerance: 0.15    # Tolerance for A4 aspect ratio (1.414)
+  min_confidence: 0.7             # Minimum confidence for valid detection
+  morph_kernel_size: 5            # Morphological operations kernel size
+
+  # Measurement validation
+  min_length_cm: 1.0              # Minimum reasonable hair length (cm)
+  max_length_cm: 200.0            # Maximum reasonable hair length (cm)
+
+# ==================== PROCESSING OPTIONS ====================
+processing:
+  file_pattern: "*.jpg"         # File pattern for batch processing (e.g., "*.jpg", "*.png", "*.jpeg")
+  visualize: false              # Create visualization images (set to false for JSON-only output)
+  save_mask: false              # Save hair segmentation masks
+  batch_size: 1                 # Batch size for processing
